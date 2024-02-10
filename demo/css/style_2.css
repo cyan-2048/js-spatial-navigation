@@ -11,7 +11,7 @@
   cursor: default;
 }
 
-.focusable:focus {
+.focusable[data-focused] {
   outline: 3px solid red;
 }
 

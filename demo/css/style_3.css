@@ -47,7 +47,7 @@ body {
   background-color: #999;
 }
 
-#main-container .button:focus {
+#main-container .button[data-focused] {
   background-color: #333;
   color: white;
 }
@@ -90,7 +90,7 @@ body {
   line-height: 160px;
 }
 
-.icon:focus {
+.icon[data-focused] {
   border: 5px solid white;
   line-height: 150px;
 }
@@ -132,7 +132,7 @@ body {
   margin: 0 15px;
 }
 
-#settings-dialog .button:focus {
+#settings-dialog .button[data-focused] {
   background-color: blue;
 }
 
@@ -145,7 +145,7 @@ body {
   padding: 5px 10px;
 }
 
-#option-area .focusable:focus {
+#option-area .focusable[data-focused] {
   border: 2px solid red;
 }
 

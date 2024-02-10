@@ -29,7 +29,6 @@ var GlobalConfig = {
 	leaveFor: null, // {left: <extSelector>, right: <extSelector>,
 	//  up: <extSelector>, down: <extSelector>}
 	restrict: "self-first", // 'self-first', 'self-only', 'none'
-	tabIndexIgnoreList: "a, input, select, textarea, button, iframe, [contentEditable=true]",
 	navigableFilter: null,
 };
 
@@ -400,9 +399,7 @@ function parseSelector(selector) {
 	var result = [];
 	try {
 		if (selector) {
-			if ($) {
-				result = $(selector).get();
-			} else if (typeof selector === "string") {
+			if (typeof selector === "string") {
 				result = [].slice.call(document.querySelectorAll(selector));
 			} else if (typeof selector === "object" && selector.length) {
 				result = [].slice.call(selector);
@@ -416,11 +413,15 @@ function parseSelector(selector) {
 	return result;
 }
 
+/**
+ *
+ * @param {HTMLElement} elem
+ * @param {string} selector
+ * @returns
+ */
 function matchSelector(elem, selector) {
-	if ($) {
-		return $(elem).is(selector);
-	} else if (typeof selector === "string") {
-		return elementMatchesSelector.call(elem, selector);
+	if (typeof selector === "string") {
+		return elem.matches(selector);
 	} else if (typeof selector === "object" && selector.length) {
 		return selector.indexOf(elem) >= 0;
 	} else if (typeof selector === "object" && selector.nodeType === 1) {
@@ -429,10 +430,31 @@ function matchSelector(elem, selector) {
 	return false;
 }
 
+/**
+ * @type {HTMLElement | null}
+ */
+let currentFocus = null;
+
+function focus(el) {
+	if (el === currentFocus) return;
+
+	if (currentFocus) {
+		currentFocus.removeAttribute("data-focused");
+	}
+
+	if (el) {
+		el.setAttribute("data-focused", "");
+	}
+
+	currentFocus = el;
+}
+
 function getCurrentFocusedElement() {
-	var activeElement = document.activeElement;
-	if (activeElement && activeElement !== document.body) {
-		return activeElement;
+	return currentFocus;
+
+	var actEl = document.activeElement;
+	if (actEl && actEl !== document.body) {
+		return actEl;
 	}
 }
 
@@ -518,6 +540,15 @@ function getSectionLastFocusedElement(sectionId) {
 	return lastFocusedElement;
 }
 
+
+/**
+ * 
+ * @param {HTMLElement} elem 
+ * @param {*} type 
+ * @param {*} details 
+ * @param {*} cancelable 
+ * @returns 
+ */
 function fireEvent(elem, type, details, cancelable) {
 	if (arguments.length < 4) {
 		cancelable = true;
@@ -536,9 +567,11 @@ function focusElement(elem, sectionId, direction) {
 
 	var silentFocus = function () {
 		if (currentFocusedElement) {
-			currentFocusedElement.blur();
+			// currentFocusedElement.blur();
+			focus(null);
 		}
-		elem.focus();
+		// elem.focus();
+		focus(elem);
 		focusChanged(elem, sectionId);
 	};
 
@@ -566,7 +599,8 @@ function focusElement(elem, sectionId, direction) {
 			_duringFocusChange = false;
 			return false;
 		}
-		currentFocusedElement.blur();
+		// currentFocusedElement.blur();
+		focus(null);
 		fireEvent(currentFocusedElement, "unfocused", unfocusProperties, false);
 	}
 
@@ -580,7 +614,8 @@ function focusElement(elem, sectionId, direction) {
 		_duringFocusChange = false;
 		return false;
 	}
-	elem.focus();
+	// elem.focus();
+	focus(elem);
 	fireEvent(elem, "focused", focusProperties, false);
 
 	_duringFocusChange = false;
@@ -673,10 +708,6 @@ function gotoLeaveFor(sectionId, direction) {
 				return null;
 			}
 			return focusExtendedSelector(next, direction);
-		}
-
-		if ($ && next instanceof $) {
-			next = next.get(0);
 		}
 
 		var nextSectionId = getSectionId(next);
@@ -857,7 +888,8 @@ function onFocus(evt) {
 
 			if (!fireEvent(target, "willfocus", focusProperties)) {
 				_duringFocusChange = true;
-				target.blur();
+				// target.blur();
+				focus(null);
 				_duringFocusChange = false;
 			} else {
 				fireEvent(target, "focused", focusProperties, false);
@@ -883,7 +915,8 @@ function onBlur(evt) {
 		if (!fireEvent(target, "willunfocus", unfocusProperties)) {
 			_duringFocusChange = true;
 			setTimeout(function () {
-				target.focus();
+				// target.focus();
+				focus(target);
 				_duringFocusChange = false;
 			});
 		} else {
@@ -1033,8 +1066,11 @@ var SpatialNavigation = {
 	focus: function (elem, silent) {
 		var result = false;
 
+		// if silent is not defined and elem is a boolean
 		if (silent === undefined && typeof elem === "boolean") {
+			// silent becomes elem
 			silent = elem;
+
 			elem = undefined;
 		}
 
@@ -1054,10 +1090,6 @@ var SpatialNavigation = {
 					result = focusExtendedSelector(elem);
 				}
 			} else {
-				if ($ && elem instanceof $) {
-					elem = elem.get(0);
-				}
-
 				var nextSectionId = getSectionId(elem);
 				if (isNavigable(elem, nextSectionId)) {
 					result = focusElement(elem, nextSectionId);
@@ -1102,34 +1134,7 @@ var SpatialNavigation = {
 
 		return focusNext(direction, elem, sectionId);
 	},
-
-	// makeFocusable()
-	// makeFocusable(<sectionId>)
-	makeFocusable: function (sectionId) {
-		var doMakeFocusable = function (section) {
-			var tabIndexIgnoreList =
-				section.tabIndexIgnoreList !== undefined ? section.tabIndexIgnoreList : GlobalConfig.tabIndexIgnoreList;
-			parseSelector(section.selector).forEach(function (elem) {
-				if (!matchSelector(elem, tabIndexIgnoreList)) {
-					if (!elem.getAttribute("tabindex")) {
-						elem.setAttribute("tabindex", "-1");
-					}
-				}
-			});
-		};
-
-		if (sectionId) {
-			if (_sections[sectionId]) {
-				doMakeFocusable(_sections[sectionId]);
-			} else {
-				throw new Error('Section "' + sectionId + "\" doesn't exist!");
-			}
-		} else {
-			for (var id in _sections) {
-				doMakeFocusable(_sections[id]);
-			}
-		}
-	},
+	makeFocusable() {},
 
 	setDefaultSection: function (sectionId) {
 		if (!sectionId) {

@@ -57,7 +57,7 @@
   outline: 0;
 }
 
-.focusable:focus {
+.focusable[data-focused] {
   opacity: 0.5;
 }
 
